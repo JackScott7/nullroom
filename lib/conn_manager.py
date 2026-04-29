@@ -1,20 +1,31 @@
 from fastapi import WebSocket
 
 
+class NullUser:
+    def __init__(self, username: str, ws_connection: WebSocket):
+        self.username: str = username
+        self.connection: WebSocket = ws_connection
+
+
 class ContextManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        self.active_connections: list[NullUser] = []
 
-    async def connect(self, ws: WebSocket):
-        await ws.accept()
-        self.active_connections.append(ws)
+    async def connect(self, user: NullUser):
+        await user.connection.accept()
+        # await ws.accept()
+        self.active_connections.append(user)
 
-    async def disconnect(self, ws: WebSocket, client_id: str):
-        await self.broadcast(ws, f"Client '{client_id}' Disconnected")
-        self.active_connections.remove(ws)
+    async def disconnect(self, user: NullUser):
+        await self.broadcast(f"Client '{user.username}' Disconnected")
+        self.active_connections.remove(user)
 
-    async def broadcast(self, ws: WebSocket, data):
-        _ = [await ws.send_text(data) for ws in self.active_connections]
+    async def broadcast(self, data):
+        _ = [await conn.connection.send_text(data) for conn in self.active_connections]
 
-
+    def find_user(self, username: str) -> NullUser | None:
+        for user in self.active_connections:
+            if user.username == username:
+                return user
+        return None
 
