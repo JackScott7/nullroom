@@ -1,7 +1,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from lib.conn_manager import ContextManager, NullUser
+from lib.chat_room import ChatRoom
+from lib.conn_manager import ContextManager
+from lib.nulluser import NullUser
+from lib.util import VisibilityPolicy
 
 
 app = FastAPI(title="Nullroom")
@@ -30,7 +33,7 @@ async def websocket_endpoint(ws: WebSocket, client_id: str):
         await ws_manager.disconnect(user)
 
 
-@app.post("/api/userAvailable")
+@app.post("/api/is-user-available")
 async def is_user_available(request: Request):
     if not await request.body():
         return JSONResponse(status_code=400, content={"status": "error_no_body"})
@@ -44,8 +47,8 @@ async def is_user_available(request: Request):
     if not username:
         return JSONResponse(status_code=400, content={"status": "error_empty_username"})
 
-    is_available = ws_manager.is_user_available(username)
-    if is_available:
+    is_available = ws_manager.find_user(username)
+    if not is_available:
         return JSONResponse(status_code=200, content={"status": "available"})
     else:
         return JSONResponse(status_code=409, content={"status": "taken"})
@@ -53,7 +56,31 @@ async def is_user_available(request: Request):
 
 @app.get("/api/conns")
 def get_conns():
+    print(ws_manager.active_connections)
     return JSONResponse(status_code=200, content={"no_connections": len(ws_manager.active_connections)})
 
 
+@app.post("/api/create-room")
+async def create_room(request: Request):
+    data = await request.json()
+
+    room = ChatRoom(
+        data.get("name"),
+        data.get("maxClients"),
+        ws_manager.find_user(data.get("user")),
+        visibility=VisibilityPolicy.PUBLIC if data.get("visibility") == 'public' else VisibilityPolicy.PRIVATE
+    )
+
+    ws_manager.add_room(room)
+
+    return JSONResponse(status_code=201, content={"status": "created", "room": room.to_dict})
+
+
+@app.get("/api/rooms/{room_name}")
+async def get_room(room_name: str):
+    room = ws_manager.search_room(room_name)
+    if room:
+        return JSONResponse(status_code=200, content={"success": True, "data": room.to_dict})
+    else:
+        return JSONResponse(status_code=404, content={"success": False})
 
