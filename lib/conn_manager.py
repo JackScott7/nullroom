@@ -23,9 +23,9 @@ class ContextManager:
     async def broadcast(self, data):
         _ = [await conn.connection.send_text(data) for conn in self.active_connections]
 
-    def find_user(self, username: str) -> NullUser | None:
+    def is_user_available(self, username: str) -> bool:
         for user in self.active_connections:
             if user.username == username:
-                return user
-        return None
+                return False
+        return True
 

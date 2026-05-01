@@ -27,12 +27,20 @@ async def websocket_endpoint(ws: WebSocket, client_id: str):
 
 @app.post("/api/userAvailable")
 async def is_user_available(request: Request):
+    if not await request.body():
+        return JSONResponse(status_code=400, content={"status": "error_no_body"})
+
     data = await request.json()
     if not data:
-        return JSONResponse(status_code=400, content={"message": "No data provided"})
+        return JSONResponse(status_code=400, content={"status": "error"})
 
-    found = ws_manager.find_user(data.get('username', None))
-    if not found:
+    username = data.get("username", None).strip()
+
+    if not username:
+        return JSONResponse(status_code=400, content={"status": "error_empty_username"})
+
+    is_available = ws_manager.is_user_available(username)
+    if is_available:
         return JSONResponse(status_code=200, content={"status": "available"})
     else:
         return JSONResponse(status_code=409, content={"status": "taken"})
