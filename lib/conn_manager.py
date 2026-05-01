@@ -1,19 +1,14 @@
-from fastapi import WebSocket
-
-
-class NullUser:
-    def __init__(self, username: str, ws_connection: WebSocket):
-        self.username: str = username
-        self.connection: WebSocket = ws_connection
+from lib.chat_room import ChatRoom
+from lib.nulluser import NullUser
 
 
 class ContextManager:
     def __init__(self):
         self.active_connections: list[NullUser] = []
+        self.__rooms: list[ChatRoom] = []
 
     async def connect(self, user: NullUser):
         await user.connection.accept()
-        # await ws.accept()
         self.active_connections.append(user)
 
     async def disconnect(self, user: NullUser):
@@ -23,9 +18,19 @@ class ContextManager:
     async def broadcast(self, data):
         _ = [await conn.connection.send_text(data) for conn in self.active_connections]
 
-    def is_user_available(self, username: str) -> bool:
-        for user in self.active_connections:
-            if user.username == username:
-                return False
-        return True
+    def find_user(self, username: str) -> NullUser | None:
+        for conn in self.active_connections:
+            if conn.username == username:
+                return conn
+        return None
+
+    def search_room(self, name) -> ChatRoom | None:
+        found = [room for room in  self.__rooms if room.name == name]
+        if found:
+            return found[0]
+        return None
+
+    def add_room(self, room: ChatRoom) -> None:
+        self.__rooms.append(room)
+
 
