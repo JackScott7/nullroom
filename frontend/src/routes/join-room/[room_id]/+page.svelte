@@ -15,40 +15,7 @@
     async function fetchRoomInfo() {
         try {
             wsJoinRoom(roomId!);
-            // const res = await fetch(
-            //     `http://127.0.0.1:8000/api/room/${roomId}`,
-            // );
-            // if (!res.ok) {
-            //     error = "Room not found or expired.";
-            //     return;
-            // }
-            // const data = await res.json();
-            // room = data.data;
-
-            // const username = localStorage.getItem("nr_username") || "";
-
-            // if (!username) {
-            //     error = "Please Signup first";
-            //     setTimeout(() => {
-            //         goto(`/?redirectUrl=/room/${roomId}`);
-            //     }, 2000);
-            //     return
-            // }
-
-            // const joinRes = await fetch(
-            //     `http://127.0.0.1:8000/api/join-room/${roomId}`,
-            //     {
-            //         method: "POST",
-            //         headers: { "Content-Type": "application/json" },
-            //         body: JSON.stringify({ username }),
-            //     },
-            // );
-
-            // if (!joinRes.ok) {
-            //     error = "Failed to join room. It may be full.";
-            //     return;
-            // }
-
+            
             success = true;
             setTimeout(() => {
                 goto(`/room/${roomId}`);

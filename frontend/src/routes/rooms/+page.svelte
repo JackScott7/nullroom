@@ -26,7 +26,7 @@
         "#a78bfa",
         "#f472b6",
     ];
-    let selectedColor = $state(nameColors[0]);
+    let selectedColor = $state(nameColors[Math.floor(Math.random() * nameColors.length)]);
 
     let showModal = $state(false);
     let roomName = $state("");
@@ -67,16 +67,6 @@
         roomName = `${adj}-${noun}`;
     }
 
-    // function validateUserConnectivity() {
-    //     const user = localStorage.getItem("nr_username");
-    //     if (!user) {
-    //         console.error("username is empty, new login required");
-    //         location.href = "/";
-    //         localStorage.removeItem("nr_username");
-    //         return;
-    //     }
-    // }
-
     async function handleCreateRoom() {
         if (roomName.trim().length < 4) {
             alert("Room name must be at least 4 characters.");
@@ -100,10 +90,6 @@
         wsSendNameColor(user, color);
     }
 
-    function joinSingleRoom(roomId: string) {
-        wsJoinRoom(roomId);
-    }
-
     $effect(() => {
         const room = $createdRoom;
         if (room) {
@@ -120,6 +106,7 @@
         }
         wsConnect(user);
         wsGetPublicRooms(user);
+        wsSendNameColor(user, selectedColor);
     });
 </script>
 

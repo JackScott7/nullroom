@@ -1,11 +1,13 @@
 <script lang="ts">
     import { page } from "$app/state";
     import { onMount } from "svelte";
-    import { 
+    import {
         wsConnect,
         wsJoinRoom,
         currentRoom,
-        users
+        users,
+        messages,
+        wsSendChatMessage,
     } from "$lib/stores/websocket";
 
     const roomId = page.params.room_id;
@@ -14,17 +16,12 @@
     let inputText = $state("");
     let copied = $state(false);
 
-    let host = $derived($currentRoom?.host ?? '');
+    let host = $derived($currentRoom?.host ?? "");
     let isHost = $derived(host === currentUser);
 
-    let roomName = $derived($currentRoom?.name ?? 'Loading...');
+    let roomName = $derived($currentRoom?.name ?? "Loading...");
 
     let maxClients = $derived($currentRoom?.maxClients ?? 8);
-
-    let messages = $state<
-        { sender: string; text: string; color: string; time: string }[]
-    >([]);
-
 
     let userCount = $derived($users.length);
 
@@ -47,8 +44,8 @@
                 minute: "2-digit",
             }),
         };
-        // TODO: send via WebSocket
-        messages = [...messages, msg];
+        wsSendChatMessage(inputText, roomId!, currentUser);
+        // messages = [...$messages, msg];
         inputText = "";
     }
 
@@ -67,7 +64,7 @@
         currentUser = stored;
 
         wsConnect(currentUser);
-        wsJoinRoom(roomId!)
+        wsJoinRoom(roomId!);
     });
 
     function handleKeydown(e: KeyboardEvent) {
@@ -79,7 +76,7 @@
 </script>
 
 <svelte:head>
-    <title>Nullroom - Chat</title>
+    <title>Nullroom - Chat - {roomName}</title>
 </svelte:head>
 
 <div
@@ -105,7 +102,7 @@
         <main class="flex flex-1 flex-col">
             <!-- Messages container -->
             <div class="flex-1 overflow-y-auto p-4 space-y-3">
-                {#each messages as msg}
+                {#each $messages as msg}
                     <div class="flex items-start gap-2">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -122,7 +119,7 @@
                         </svg>
                         <span
                             class="mt-1 text-xs font-bold"
-                            style="color: {msg.color};">{msg.sender}</span
+                            style="color: {msg.color};">{msg.username}</span
                         >
                         <div
                             class="rounded-lg bg-bg-secondary px-3 py-2 text-sm shadow-sm"
@@ -135,7 +132,7 @@
                         </div>
                     </div>
                 {/each}
-                {#if messages.length === 0}
+                {#if $messages.length === 0}
                     <p class="text-center text-text-secondary">
                         No messages yet. Say hello!
                     </p>
@@ -220,30 +217,31 @@
                 <ul class="space-y-2">
                     {#each $users as user (user.username)}
                         <li
-                            class="group flex items-center justify-between rounded-lg p-2 hover:bg-bg-primary/50 transition"
+                            class="group flex items-center justify-between rounded-lg p-2 transition hover:bg-bg-primary/50"
+                            style={user.username === currentUser
+                                ? `border: 2px solid ${user.color}`
+                                : ""}
                         >
                             <div class="flex items-center gap-2">
                                 <span
                                     class="h-3 w-3 rounded-full"
                                     style="background-color: {user.color};"
                                 ></span>
-                                <span
-                                    ><svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        class="h-5 w-5"
-                                    >
-                                        <path
-                                            d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"
-                                        />
-                                        <circle cx="12" cy="7" r="4" />
-                                    </svg></span
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    class="h-5 w-5"
                                 >
+                                    <path
+                                        d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"
+                                    />
+                                    <circle cx="12" cy="7" r="4" />
+                                </svg>
                                 <span class="text-sm">{user.username}</span>
                                 {#if user.isHost}
                                     <span class="text-xs text-accent">👑</span>
