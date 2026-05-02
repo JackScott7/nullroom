@@ -5,10 +5,12 @@ export interface User {
 }
 
 export interface Message {
+    tempId?: string;
     username: string;
     text: string;
     color: string;
     time: string;
+    status?: 'sending' | 'sent';
 }
 
 export interface Room {
