@@ -1,14 +1,21 @@
 <script lang="ts">
-    // ---------- Room list data ----------
-    let rooms = $state([
-        { id: "1", name: "general", users: 5 },
-        { id: "2", name: "random", users: 2 },
-        { id: "3", name: "tech-talk", users: 7 },
-        { id: "4", name: "chill", users: 1 },
-        { id: "5", name: "music", users: 3 },
-    ]);
+    import { onMount } from "svelte";
+    import {
+        wsConnect,
+        wsGetPublicRooms,
+        wsSendNameColor,
+        publicRooms,
+        wsCreateRoom,
+        createdRoom,
 
-    // ---------- Name colour picker ----------
+        wsJoinRoom
+
+    } from "$lib/stores/websocket";
+    import { goto } from "$app/navigation";
+
+
+    let user: string = $state("");
+
     const nameColors = [
         "#f87171",
         "#fb923c",
@@ -21,11 +28,10 @@
     ];
     let selectedColor = $state(nameColors[0]);
 
-    // ---------- Modal state ----------
     let showModal = $state(false);
     let roomName = $state("");
     let maxClients = $state(8);
-    let isPublic = $state(true); // true = Public, false = Private
+    let visibility = $state("");
 
     function openModal() {
         showModal = true;
@@ -33,7 +39,6 @@
 
     function closeModal() {
         showModal = false;
-        // Optionally reset fields after creation or cancel
     }
 
     function generateRandomName() {
@@ -62,18 +67,24 @@
         roomName = `${adj}-${noun}`;
     }
 
-    function handleCreateRoom() {
-        if (roomName.trim().length < 2) {
-            alert("Room name must be at least 2 characters.");
+    // function validateUserConnectivity() {
+    //     const user = localStorage.getItem("nr_username");
+    //     if (!user) {
+    //         console.error("username is empty, new login required");
+    //         location.href = "/";
+    //         localStorage.removeItem("nr_username");
+    //         return;
+    //     }
+    // }
+
+    async function handleCreateRoom() {
+        if (roomName.trim().length < 4) {
+            alert("Room name must be at least 4 characters.");
             return;
         }
-        // TODO: send to API / create WebSocket room
-        console.log("Creating room:", {
-            name: roomName.trim(),
-            maxClients,
-            visibility: isPublic ? "public" : "private",
-            nameColor: selectedColor,
-        });
+
+        wsCreateRoom(user, roomName, maxClients, visibility);
+
         closeModal();
     }
 
@@ -83,6 +94,33 @@
             closeModal();
         }
     }
+
+    function selectNameColor(color: string) {
+        selectedColor = color;
+        wsSendNameColor(user, color);
+    }
+
+    function joinSingleRoom(roomId: string) {
+        wsJoinRoom(roomId);
+    }
+
+    $effect(() => {
+        const room = $createdRoom;
+        if (room) {
+            goto(`/room/${room.roomId}`);
+            createdRoom.set(null);
+        }
+    });
+
+    onMount(() => {
+        user = localStorage.getItem("nr_username") || "";
+        if (!user) {
+            location.href = "/";
+            return;
+        }
+        wsConnect(user);
+        wsGetPublicRooms(user);
+    });
 </script>
 
 <svelte:head>
@@ -112,20 +150,21 @@
     <div class="flex h-screen pt-[65px]">
         <!-- Left: scrollable room list -->
         <main class="flex-1 overflow-y-auto px-6 pb-12">
-            <h2 class="mb-6 mt-6 text-2xl font-semibold">Rooms</h2>
+            <h2 class="mb-6 mt-6 text-2xl font-semibold">Public Rooms - Join any room by clicking on it</h2>
             <div
                 class="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
             >
-                {#each rooms as room (room.id)}
+                {#each $publicRooms as room (room.roomId)}
+                <a href="/join-room/{room.roomId}">
                     <div
                         class="relative flex h-48 flex-col justify-between rounded-xl border border-border bg-bg-secondary p-5 transition hover:border-accent"
                     >
                         <span
-                            class="ml-auto text-sm font-medium text-text-primary"
-                            >#{room.name}</span
+                            class="text-sm font-medium text-text-primary"
+                            >{room.name}</span
                         >
                         <div
-                            class="ml-auto flex items-center gap-1.5 text-text-secondary"
+                            class="flex items-center gap-1.5 text-text-secondary"
                         >
                             <svg
                                 class="h-4 w-4"
@@ -140,9 +179,10 @@
                                     d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
                                 />
                             </svg>
-                            <span class="text-sm">{room.users}</span>
+                            <span class="text-sm">{room.users.length} / {room.maxClients}</span>
                         </div>
                     </div>
+                </a>
                 {/each}
             </div>
         </main>
@@ -188,7 +228,7 @@
                                 ? 'border-white scale-110 shadow-lg'
                                 : 'border-transparent hover:scale-105'}"
                             style="background-color: {color};"
-                            onclick={() => (selectedColor = color)}
+                            onclick={() => selectNameColor(color)}
                             aria-label="Select color {color}"
                         ></button>
                     {/each}
@@ -273,16 +313,16 @@
                     >
                     <div class="flex gap-3">
                         <button
-                            onclick={() => (isPublic = true)}
-                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {isPublic
+                            onclick={() => (visibility = "public")}
+                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {visibility
                                 ? 'bg-accent text-white'
                                 : 'bg-bg-primary text-text-secondary border border-border hover:border-accent'}"
                         >
                             Public
                         </button>
                         <button
-                            onclick={() => (isPublic = false)}
-                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {!isPublic
+                            onclick={() => (visibility = "private")}
+                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {!visibility
                                 ? 'bg-accent text-white'
                                 : 'bg-bg-primary text-text-secondary border border-border hover:border-accent'}"
                         >

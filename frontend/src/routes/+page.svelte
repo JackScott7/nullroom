@@ -1,4 +1,8 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
+    import { page } from "$app/state";
+    import { wsConnect } from "$lib/stores/websocket";
+
     let username = $state("");
     let notification = $state({ message: "", success: false });
     let loading = $state(false);
@@ -12,13 +16,13 @@
     }
 
     async function handleEnter() {
-        const trimmed = username.trim();
+        username = username.trim();
 
-        if (!trimmed) {
+        if (!username) {
             showNotification("Please enter a username to continue.", false);
             return;
         }
-        if (trimmed.length < 3) {
+        if (username.length < 3) {
             showNotification("Username must be at least 3 characters.", false);
             return;
         }
@@ -26,14 +30,14 @@
         loading = true;
         try {
             const request = await fetch(
-                "http://127.0.0.1:8000/api/userAvailable",
+                "http://127.0.0.1:8000/api/is-user-available",
                 {
                     method: "POST",
                     headers: {
                         Accept: "application/json",
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({ username: trimmed }),
+                    body: JSON.stringify({ username: username }),
                 },
             );
 
@@ -51,13 +55,19 @@
 
             const response = await request.json();
             if (response.status === "available") {
-                const ws = new WebSocket(
-                    `ws://127.0.0.1:8000/api/ws/${trimmed}`,
-                );
-                showNotification(`Welcome, ${trimmed}! Redirecting...`, true);
+                wsConnect(username);
+
+                localStorage.setItem("nr_username", username);
+                
+                showNotification(`Welcome, ${username}!`, true);
                 setTimeout(() => {
-                    window.location.href = "/rooms";
-                }, 1500);
+                    const redirectUrl = page.url.searchParams.get('redirectUrl')
+                    if (redirectUrl) {
+                        goto(redirectUrl)
+                        return;
+                    }
+                    goto("/rooms");
+                }, 500);
             }
         } catch {
             showNotification("Network error. Please try again.", false);
