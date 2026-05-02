@@ -9,6 +9,7 @@
         messages,
         wsSendChatMessage,
         wsLeaveRoom,
+        wsSendNameColor,
     } from "$lib/stores/websocket";
     import { goto } from "$app/navigation";
 
@@ -80,6 +81,11 @@
 
         wsConnect(currentUser);
         wsJoinRoom(roomId!);
+
+        const nr_color = localStorage.getItem('nr_color');
+        if (nr_color) {
+            wsSendNameColor(currentUser, nr_color);
+        }
     });
 </script>
 
@@ -114,32 +120,76 @@
                 class="flex-1 overflow-y-auto p-4 space-y-3"
             >
                 {#each $messages as msg}
-                    <div class="flex items-start gap-2">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            class="h-5 w-5"
-                        >
-                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                        </svg>
-                        <span
-                            class="mt-1 text-xs font-bold"
-                            style="color: {msg.color};">{msg.username}</span
-                        >
-                        <div
-                            class="rounded-lg bg-bg-secondary px-3 py-2 text-sm shadow-sm"
-                        >
-                            <p class="text-text-primary">{msg.text}</p>
-                            <span
-                                class="block text-right text-xs text-text-secondary"
-                                >{msg.time}</span
+                    <div class="flex items-start gap-3">
+                        <!-- Person SVG – vertically centred outside the bubble -->
+                        <div class="flex h-full items-center pt-1">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="h-6 w-6 flex-shrink-0 text-text-secondary"
                             >
+                                <path
+                                    d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"
+                                />
+                                <circle cx="12" cy="7" r="4" />
+                            </svg>
+                        </div>
+
+                        <!-- Rounded message bubble -->
+                        <div
+                            class="w-fit max-w-[80%] rounded-xl border border-border bg-bg-secondary px-4 py-3 shadow-sm"
+                        >
+                            <!-- Username – top left -->
+                            <span
+                                class="mb-1 block text-xs font-bold"
+                                style="color: {msg.color};"
+                            >
+                                {msg.username}
+                            </span>
+
+                            <!-- Message text – middle, left aligned -->
+                            <p
+                                class="text-sm text-text-primary leading-relaxed"
+                            >
+                                {msg.text}
+                            </p>
+
+                            <!-- Time + ticks – bottom right -->
+                            <div
+                                class="mt-1.5 flex items-center justify-end gap-1.5 text-xs text-text-secondary"
+                            >
+                                <span>{msg.time}</span>
+                                {#if msg.status === "sending"}
+                                    <!-- Clock -->
+                                    <svg
+                                        class="h-3 w-3"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        stroke-width="2"
+                                    >
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M12 6v6l4 2" />
+                                    </svg>
+                                {:else if msg.status === "sent"}
+                                    <!-- Double check -->
+                                    <svg
+                                        class="h-3 w-3 text-green-400"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        stroke-width="2"
+                                    >
+                                        <path d="M20 6L9 17l-5-5" />
+                                        <path d="M20 6l-10 7-1-1" />
+                                    </svg>
+                                {/if}
+                            </div>
                         </div>
                     </div>
                 {/each}

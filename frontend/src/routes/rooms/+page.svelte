@@ -1,15 +1,14 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import {
         wsConnect,
         wsGetPublicRooms,
         wsSendNameColor,
         publicRooms,
         wsCreateRoom,
-        createdRoom
+        createdRoom,
     } from "$lib/stores/websocket";
     import { goto } from "$app/navigation";
-
 
     let user: string = $state("");
 
@@ -23,12 +22,14 @@
         "#a78bfa",
         "#f472b6",
     ];
-    let selectedColor = $state(nameColors[Math.floor(Math.random() * nameColors.length)]);
+    let selectedColor = $state("");
 
     let showModal = $state(false);
     let roomName = $state("");
     let maxClients = $state(8);
-    let visibility = $state("");
+    let visibility = $state("public");
+    let countdown = $state(20);
+    let countdownInterval: ReturnType<typeof setInterval> | undefined;
 
     function openModal() {
         showModal = true;
@@ -85,6 +86,7 @@
     function selectNameColor(color: string) {
         selectedColor = color;
         wsSendNameColor(user, color);
+        localStorage.setItem("nr_color", color);
     }
 
     $effect(() => {
@@ -101,11 +103,33 @@
             location.href = "/";
             return;
         }
+
+        const savedColor = localStorage.getItem("nr_color");
+        if (savedColor) {
+            selectedColor = savedColor;
+        } else {
+            selectedColor =
+                nameColors[Math.floor(Math.random() * nameColors.length)];
+            localStorage.setItem("nr_color", selectedColor);
+        }
+
         wsConnect(user);
         wsSendNameColor(user, selectedColor);
-        setInterval(() => {
-            wsGetPublicRooms(user);
-        }, 10000);
+        wsGetPublicRooms(user);
+
+        // room refetch countdown
+        countdownInterval = setInterval(() => {
+            if (countdown > 1) {
+                countdown--;
+            } else {
+                countdown = 20;
+                wsGetPublicRooms(user);
+            }
+        }, 1000);
+
+        onDestroy(() => {
+            if (countdownInterval) clearInterval(countdownInterval);
+        });
     });
 </script>
 
@@ -136,39 +160,42 @@
     <div class="flex h-screen pt-[65px]">
         <!-- Left: scrollable room list -->
         <main class="flex-1 overflow-y-auto px-6 pb-12">
-            <h2 class="mb-6 mt-6 text-2xl font-semibold">Public Rooms - Join any room by clicking on it</h2>
+            <h2 class="mb-6 mt-6 text-2xl font-semibold">
+                Public Rooms - Join any room by clicking on it
+            </h2>
             <div
                 class="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
             >
                 {#each $publicRooms as room (room.roomId)}
-                <a href="/join-room/{room.roomId}">
-                    <div
-                        class="relative flex h-48 flex-col justify-between rounded-xl border border-border bg-bg-secondary p-5 transition hover:border-accent"
-                    >
-                        <span
-                            class="text-sm font-medium text-text-primary"
-                            >{room.name}</span
-                        >
+                    <a href="/join-room/{room.roomId}">
                         <div
-                            class="flex items-center gap-1.5 text-text-secondary"
+                            class="relative flex h-48 flex-col justify-between rounded-xl border border-border bg-bg-secondary p-5 transition hover:border-accent"
                         >
-                            <svg
-                                class="h-4 w-4"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                viewBox="0 0 24 24"
+                            <span class="text-sm font-medium text-text-primary"
+                                >{room.name}</span
                             >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-                                />
-                            </svg>
-                            <span class="text-sm">{room.users.length} / {room.maxClients}</span>
+                            <div
+                                class="flex items-center gap-1.5 text-text-secondary"
+                            >
+                                <svg
+                                    class="h-4 w-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
+                                    />
+                                </svg>
+                                <span class="text-sm"
+                                    >{room.users.length} / {room.maxClients}</span
+                                >
+                            </div>
                         </div>
-                    </div>
-                </a>
+                    </a>
                 {/each}
             </div>
         </main>
@@ -177,6 +204,23 @@
         <aside
             class="w-72 border-l border-border bg-bg-secondary/50 p-6 flex flex-col gap-8"
         >
+            <div
+                class="flex items-center justify-between rounded-lg border border-white/20 bg-bg-primary px-4 py-2 text-xs text-text-secondary"
+            >
+                <div class="flex items-center gap-2">
+                    <svg
+                        class="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        stroke-width="2"
+                    >
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 6v6l4 2" />
+                    </svg>
+                    <span>Fetching new rooms in {countdown}s</span>
+                </div>
+            </div>
             <!-- Create Room button -->
             <button
                 onclick={openModal}
@@ -300,7 +344,8 @@
                     <div class="flex gap-3">
                         <button
                             onclick={() => (visibility = "public")}
-                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {visibility === "public"
+                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {visibility ===
+                            'public'
                                 ? 'bg-accent text-white'
                                 : 'bg-bg-primary text-text-secondary border border-border hover:border-accent'}"
                         >
@@ -308,7 +353,8 @@
                         </button>
                         <button
                             onclick={() => (visibility = "private")}
-                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {visibility === "private"
+                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {visibility ===
+                            'private'
                                 ? 'bg-accent text-white'
                                 : 'bg-bg-primary text-text-secondary border border-border hover:border-accent'}"
                         >

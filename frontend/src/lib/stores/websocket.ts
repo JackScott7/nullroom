@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import type { Room, Message, User } from './interfaces';
+import { generateTempId } from './utils';
 
 export const currentRoom = writable<Room | null>(null);
 export const messages = writable<Message[]>([]);
@@ -35,9 +36,9 @@ function handleServerMessage(msg: any) {
             messages.set([]);
             break;
         case 'user_joined':
-            users.update(users => [...users, { username: msg.username, color: msg.color, isHost: msg.isHost }]);
+            users.set(msg.room_users)
             break;
-        case 'public_public_rooms':
+        case 'public_rooms':
             publicRooms.set(msg.data);
             break;
         case 'room_created':
@@ -47,15 +48,40 @@ function handleServerMessage(msg: any) {
             publicRooms.update(rooms => [...rooms, msg.room])
             break;
         case 'message_sent':
-            messages.update(msgs => [...msgs, {
-                username: msg.sender,
-                text: msg.text,
-                color: msg.color,
-                time: msg.time,
-            }]);
+            const serverTempId: string | undefined = msg.tempId;
+            let matched = false;
+
+            if (serverTempId) {
+                messages.update(msgs =>
+                    msgs.map(m => {
+                        if (m.tempId === serverTempId) {
+                            matched = true;
+                            return { ...m, status: 'sent', color: msg.color, time: msg.time };
+                        }
+                        return m;
+                    })
+                );
+            }
+
+            if (!matched) {
+                messages.update(msgs => [
+                    ...msgs,
+                    {
+                        username: msg.sender,
+                        text: msg.text,
+                        color: msg.color,
+                        time: msg.time,
+                        status: 'sent',
+                    },
+                ]);
+            }
             break;
         case 'user_left':
             users.update(usrs => usrs.filter(u => u.username !== msg.username));
+            break;
+        case 'room_closed':
+            currentRoom.set(null);
+            location.href = '/rooms';
             break;
     }
 }
@@ -83,7 +109,7 @@ export function wsConnect(username: string) {
 
     ws.onclose = () => {
         ws = undefined;
-        currentUsername = undefined
+        currentUsername = undefined;
     }
 }
 
@@ -98,12 +124,23 @@ export function wsJoinRoom(roomId: string) {
 }
 
 export function wsSendChatMessage(text: string, roomId: string, username: string) {
+    const tempId = generateTempId();
     send(JSON.stringify({
         type: 'send_chat_message',
         message: text,
         roomId,
-        sender: username
+        sender: username,
+        tempId
     }));
+
+    messages.update(msgs => [...msgs, {
+        tempId,
+        username,
+        text,
+        color: '', // will be filled by server; or use local color
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        status: 'sending'
+    }]);
 }
 
 export function wsSendNameColor(username: string, color: string) {
