@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -97,14 +98,38 @@ async def handle_room_creation(payload):
     })
 
 
+async def broadcast_message_to_room(payload):
+    data = payload["data"]
+    message_text = data.get("message")
+    sender_name = data.get("sender")
+    room_id = data.get("roomId")
+
+    room = ws_manager.search_room(room_id)
+    if not room:
+        return
+
+    sender_user = ws_manager.find_user(sender_name)
+    color = sender_user.color if sender_user else "#ffffff"
+
+    broadcast_payload = {
+        "type": "message_sent",
+        "text": message_text,
+        "sender": sender_name,
+        "color": color,
+        "time": datetime.now().isoformat(),
+    }
+
+    await room.broadcast(broadcast_payload, exclude=None)
+
+
+
 @app.websocket("/api/ws/{username}")
 async def websocket_endpoint(ws: WebSocket, username: str):
     existing = ws_manager.find_user(username)
     if existing:
-        try:
-            await existing.connection.close(4004, "user already exists")
-        except Exception as e:
-            pass
+        if existing.room:
+            existing.room.leave(existing)
+        ws_manager.active_connections.remove(existing)
 
     user = NullUser(username, ws)
     await ws_manager.connect(user)
@@ -128,6 +153,8 @@ async def websocket_endpoint(ws: WebSocket, username: str):
                     await get_all_public_rooms(payload)
                 case message_type.CREATE_ROOM:
                     await handle_room_creation(payload)
+                case message_type.SEND_CHAT_MESSAGE:
+                    await broadcast_message_to_room(payload)
 
 
     except WebSocketDisconnect:

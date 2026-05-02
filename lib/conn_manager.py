@@ -13,11 +13,26 @@ class ContextManager:
         self.active_connections.append(user)
 
     async def disconnect(self, user: NullUser):
-        await user.connection.close()
-        self.active_connections.remove(user)
+        if user in self.active_connections:
+            self.active_connections.remove(user)
+
+        try:
+            await user.connection.close()
+        except Exception:
+            pass
 
     async def broadcast_all(self, data: dict):
-        _ = [await conn.connection.send_json(data) for conn in self.active_connections if not conn.room]
+        dead = []
+        for conn in self.active_connections:
+            if conn.room is None:
+                try:
+                    await conn.connection.send_json(data)
+                except Exception:
+                    pass
+        for conn in dead:
+            if conn in self.active_connections:
+                self.active_connections.remove(conn)
+        # _ = [await conn.connection.send_json(data) for conn in self.active_connections if not conn.room]
 
     def find_user(self, username: str) -> NullUser | None:
         for conn in self.active_connections:
