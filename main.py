@@ -49,7 +49,20 @@ async def handle_join_room(payload: dict):
 
 
 async def handle_leave_room(payload: dict):
-    pass
+    data = payload["data"]
+    username = data["username"]
+    room_id = data["roomId"]
+
+    user = ws_manager.find_user(username)
+
+    room = ws_manager.search_room(room_id)
+    room.leave(user)
+    await room.broadcast({
+        "type": "user_left",
+        "username": username,
+        "color": user.color,
+        "room_space": len(room.users)
+    }, exclude=None)
 
 
 async def handle_set_username_color(payload: dict):
@@ -92,10 +105,11 @@ async def handle_room_creation(payload):
     })
 
     # if this room is PUBLIC, Broadcast it to all users that don't have a room
-    await ws_manager.broadcast_all({
-        "type": "new_room_available",
-        "room": room.to_dict
-    })
+    if room.visibility == VisibilityPolicy.public:
+        await ws_manager.broadcast_all({
+            "type": "new_room_available",
+            "room": room.to_dict
+        })
 
 
 async def broadcast_message_to_room(payload):
@@ -149,7 +163,7 @@ async def websocket_endpoint(ws: WebSocket, username: str):
                     await handle_leave_room(payload)
                 case message_type.SET_COLOR:
                     await handle_set_username_color(payload)
-                case message_type.GET_ROOMS:
+                case message_type.GET_PUBLIC_ROOMS:
                     await get_all_public_rooms(payload)
                 case message_type.CREATE_ROOM:
                     await handle_room_creation(payload)
