@@ -9,5 +9,5 @@ class MessageProtocol(StrEnum):
     ROOM_JOINED = "room_joined"
     ROOM_NOT_FOUND = "room_not_found"
     SET_COLOR = "set_color"
-    GET_ROOMS = "get_rooms"
+    GET_PUBLIC_ROOMS = "get_public_rooms"
 
