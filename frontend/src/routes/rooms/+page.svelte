@@ -6,10 +6,7 @@
         wsSendNameColor,
         publicRooms,
         wsCreateRoom,
-        createdRoom,
-
-        wsJoinRoom
-
+        createdRoom
     } from "$lib/stores/websocket";
     import { goto } from "$app/navigation";
 
@@ -183,7 +180,7 @@
             <!-- Create Room button -->
             <button
                 onclick={openModal}
-                class="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3 text-sm font-medium text-white transition hover:bg-accent-hover active:scale-[0.98]"
+                class="cursor-pointer flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3 text-sm font-medium text-white transition hover:bg-accent-hover active:scale-[0.98]"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -212,7 +209,7 @@
                 <div class="grid grid-cols-4 gap-3">
                     {#each nameColors as color}
                         <button
-                            class="h-8 w-8 rounded-full border-2 transition {color ===
+                            class="cursor-pointer h-8 w-8 rounded-full border-2 transition {color ===
                             selectedColor
                                 ? 'border-white scale-110 shadow-lg'
                                 : 'border-transparent hover:scale-105'}"
@@ -303,7 +300,7 @@
                     <div class="flex gap-3">
                         <button
                             onclick={() => (visibility = "public")}
-                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {visibility
+                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {visibility === "public"
                                 ? 'bg-accent text-white'
                                 : 'bg-bg-primary text-text-secondary border border-border hover:border-accent'}"
                         >
@@ -311,7 +308,7 @@
                         </button>
                         <button
                             onclick={() => (visibility = "private")}
-                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {!visibility
+                            class="flex-1 rounded-lg px-4 py-3 text-sm font-medium transition {visibility === "private"
                                 ? 'bg-accent text-white'
                                 : 'bg-bg-primary text-text-secondary border border-border hover:border-accent'}"
                         >
