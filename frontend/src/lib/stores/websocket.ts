@@ -34,14 +34,8 @@ function handleServerMessage(msg: any) {
             users.set(msg.room.users);
             messages.set([]);
             break;
-        case 'new_message':
-            messages.update(msgs => [...msgs, msg as Message]);
-            break;
         case 'user_joined':
             users.update(users => [...users, { username: msg.username, color: msg.color, isHost: msg.isHost }]);
-            break;
-        case 'user_left':
-            users.update(users => users.filter(u => u.username !== msg.username));
             break;
         case 'public_rooms':
             publicRooms.set(msg.data);
@@ -51,6 +45,15 @@ function handleServerMessage(msg: any) {
             break;
         case 'new_room_available':
             publicRooms.update(rooms => [...rooms, msg.room])
+            break;
+        case 'message_sent':
+            messages.update(msgs => [...msgs, {
+                username: msg.sender,
+                text: msg.text,
+                color: msg.color,
+                time: msg.time,
+            }]);
+            break;
     }
 }
 
@@ -91,12 +94,12 @@ export function wsJoinRoom(roomId: string) {
     ));
 }
 
-export function wsSendChatMessage(text: string, roomId: string, user: User) {
+export function wsSendChatMessage(text: string, roomId: string, username: string) {
     send(JSON.stringify({
-        type: 'chat_message',
+        type: 'send_chat_message',
         message: text,
         roomId,
-        user
+        sender: username
     }));
 }
 
