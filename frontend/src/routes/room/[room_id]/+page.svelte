@@ -8,27 +8,21 @@
         users,
         messages,
         wsSendChatMessage,
-        wsLeaveRoom
+        wsLeaveRoom,
     } from "$lib/stores/websocket";
     import { goto } from "$app/navigation";
 
     const roomId = page.params.room_id;
-
     let currentUser = $state("");
     let inputText = $state("");
     let copied = $state(false);
-
     let host = $derived($currentRoom?.host ?? "");
     let isHost = $derived(host === currentUser);
-
     let roomName = $derived($currentRoom?.name ?? "Loading...");
-
     let maxClients = $derived($currentRoom?.maxClients ?? 8);
-
     let userCount = $state(0);
-    $effect(() => {
-        userCount = $users.length;
-    });
+    let visibility = $derived($currentRoom?.visibility ?? "public");
+    let msgContainer: HTMLDivElement | undefined = $state();
 
     function copyInviteLink() {
         const link = `${window.location.origin}/join-room/${roomId}`;
@@ -51,9 +45,29 @@
 
     function leaveRoom() {
         wsLeaveRoom(roomId!);
-        
-        goto('/rooms')
+
+        goto("/rooms");
     }
+
+    function handleKeydown(e: KeyboardEvent) {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    $effect(() => {
+        userCount = $users.length;
+    });
+
+    $effect(() => {
+        $messages.length;
+        if (msgContainer) {
+            requestAnimationFrame(() => {
+                msgContainer!.scrollTop = msgContainer!.scrollHeight;
+            });
+        }
+    });
 
     onMount(async () => {
         // Retrieve logged-in user
@@ -67,17 +81,10 @@
         wsConnect(currentUser);
         wsJoinRoom(roomId!);
     });
-
-    function handleKeydown(e: KeyboardEvent) {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    }
 </script>
 
 <svelte:head>
-    <title>Nullroom - Chat - {roomName}</title>
+    <title>Nullroom - {roomName !== "Loading..." ? roomName : "Chat"}</title>
 </svelte:head>
 
 <div
@@ -102,7 +109,10 @@
         <!-- Chat area -->
         <main class="flex flex-1 flex-col">
             <!-- Messages container -->
-            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+            <div
+                bind:this={msgContainer}
+                class="flex-1 overflow-y-auto p-4 space-y-3"
+            >
                 {#each $messages as msg}
                     <div class="flex items-start gap-2">
                         <svg
@@ -152,7 +162,7 @@
                     />
                     <button
                         onclick={sendMessage}
-                        class="rounded-lg bg-accent px-6 py-3 text-sm font-medium text-white transition hover:bg-accent-hover active:scale-[0.98]"
+                        class="cursor-pointer rounded-lg bg-accent px-6 py-3 text-sm font-medium text-white transition hover:bg-accent-hover active:scale-[0.98]"
                     >
                         Send
                     </button>
@@ -164,13 +174,19 @@
         <aside
             class="w-72 border-l border-border bg-bg-secondary/50 p-4 flex flex-col gap-6"
         >
+            <div class="text-xs text-text-secondary">
+                Room is <span class="font-bold text-text-primary"
+                    >{visibility}</span
+                >
+            </div>
+
             <!-- Invite link -->
             <div>
                 <button
                     onclick={copyInviteLink}
-                    class="flex w-full items-center justify-between rounded-lg border border-border bg-bg-primary px-4 py-3 text-sm text-text-secondary transition hover:border-accent"
+                    class="cursor-pointer flex w-full items-center justify-between rounded-lg border border-border bg-bg-primary px-4 py-3 text-sm text-text-secondary transition hover:border-accent"
                 >
-                    <span class="truncate">📋 Copy invite link</span>
+                    <span class="truncate">Copy invite link</span>
                     {#if copied}
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -205,7 +221,7 @@
 
             <button
                 onclick={leaveRoom}
-                class="flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 transition hover:bg-red-500/20 hover:border-red-500/50"
+                class="cursor-pointer flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 transition hover:bg-red-500/20 hover:border-red-500/50"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
