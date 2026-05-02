@@ -52,3 +52,6 @@ class ContextManager:
     def get_all_public_rooms(self) -> list[ChatRoom]:
         return [x for x in self.__rooms if x.visibility == VisibilityPolicy.public]
 
+    def remove_room(self, room: ChatRoom) -> None:
+        self.__rooms.remove(room)
+

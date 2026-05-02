@@ -30,7 +30,8 @@ class ChatRoom:
         }
 
     def join_user(self, user: NullUser):
-        if len(self.users) < self.max_clients and user not in self.users:
+        if len(self.users) < self.max_clients:
+            self.users = [x for x in self.users if x.username != user.username]
             self.users.append(user)
 
     async def broadcast(self, message: dict, exclude: str | None = None):

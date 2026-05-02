@@ -36,12 +36,15 @@ async def handle_join_room(payload: dict):
             "type": "room_joined",
             "room": room.to_dict
         })
+
         room.join_user(user)
         await room.broadcast({
             "type": "user_joined",
             "username": username,
-            "color": user.color
-        }, user.username)
+            "color": user.color,
+            "room_users": room.to_dict["users"]
+        }, exclude=None)
+
         return
     await ws.send_json({
         "type": MessageProtocol.ROOM_NOT_FOUND.name,
@@ -50,19 +53,31 @@ async def handle_join_room(payload: dict):
 
 async def handle_leave_room(payload: dict):
     data = payload["data"]
-    username = data["username"]
+    username = data.get("username")
     room_id = data["roomId"]
 
     user = ws_manager.find_user(username)
 
     room = ws_manager.search_room(room_id)
-    room.leave(user)
-    await room.broadcast({
-        "type": "user_left",
-        "username": username,
-        "color": user.color,
-        "room_space": len(room.users)
-    }, exclude=None)
+    if not room:
+        return
+
+    if user.is_host:
+        # if host leaves the room, dc all users and redirect them to /rooms
+        _ = [room.leave(x) for x in room.users]
+        ws_manager.remove_room(room)
+        await room.broadcast({
+            "type": "room_closed",
+            "message": "Host has left the room"
+        })
+    else:
+        room.leave(user)
+        await room.broadcast({
+            "type": "user_left",
+            "username": username,
+            "color": user.color,
+            "room_space": len(room.users)
+        }, exclude=username)
 
 
 async def handle_set_username_color(payload: dict):
@@ -117,20 +132,20 @@ async def broadcast_message_to_room(payload):
     message_text = data.get("message")
     sender_name = data.get("sender")
     room_id = data.get("roomId")
-
+    temp_id = data.get("tempId")
     room = ws_manager.search_room(room_id)
     if not room:
         return
 
     sender_user = ws_manager.find_user(sender_name)
     color = sender_user.color if sender_user else "#ffffff"
-
     broadcast_payload = {
         "type": "message_sent",
         "text": message_text,
         "sender": sender_name,
         "color": color,
-        "time": datetime.now().isoformat(),
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "tempId": temp_id
     }
 
     await room.broadcast(broadcast_payload, exclude=None)
