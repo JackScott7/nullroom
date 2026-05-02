@@ -37,7 +37,7 @@ function handleServerMessage(msg: any) {
         case 'user_joined':
             users.update(users => [...users, { username: msg.username, color: msg.color, isHost: msg.isHost }]);
             break;
-        case 'public_rooms':
+        case 'public_public_rooms':
             publicRooms.set(msg.data);
             break;
         case 'room_created':
@@ -53,6 +53,9 @@ function handleServerMessage(msg: any) {
                 color: msg.color,
                 time: msg.time,
             }]);
+            break;
+        case 'user_left':
+            users.update(usrs => usrs.filter(u => u.username !== msg.username));
             break;
     }
 }
@@ -115,7 +118,7 @@ export function wsSendNameColor(username: string, color: string) {
 
 export function wsGetPublicRooms(username: string) {
     send(JSON.stringify({
-        type: 'get_rooms',
+        type: 'get_public_rooms',
         username
     }));
 }
@@ -130,3 +133,10 @@ export function wsCreateRoom(host: string, name: string, maxClients: number, vis
     }));
 }
 
+export function wsLeaveRoom(roomId: string) {
+    send(JSON.stringify({
+        type: 'leave_room',
+        roomId: roomId,
+        username: currentUsername
+    }));
+}

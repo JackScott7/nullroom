@@ -8,7 +8,9 @@
         users,
         messages,
         wsSendChatMessage,
+        wsLeaveRoom
     } from "$lib/stores/websocket";
+    import { goto } from "$app/navigation";
 
     const roomId = page.params.room_id;
 
@@ -23,7 +25,10 @@
 
     let maxClients = $derived($currentRoom?.maxClients ?? 8);
 
-    let userCount = $derived($users.length);
+    let userCount = $state(0);
+    $effect(() => {
+        userCount = $users.length;
+    });
 
     function copyInviteLink() {
         const link = `${window.location.origin}/join-room/${roomId}`;
@@ -35,23 +40,19 @@
 
     async function sendMessage() {
         if (!inputText.trim()) return;
-        const msg = {
-            sender: currentUser,
-            text: inputText.trim(),
-            color: "var(--accent)", // placeholder; use user's chosen color later
-            time: new Date().toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-            }),
-        };
         wsSendChatMessage(inputText, roomId!, currentUser);
-        // messages = [...$messages, msg];
         inputText = "";
     }
 
     function kickUser(username: string) {
         // TODO: send kick command via WebSocket
         $users = $users.filter((u) => u.username !== username);
+    }
+
+    function leaveRoom() {
+        wsLeaveRoom(roomId!);
+        
+        goto('/rooms')
     }
 
     onMount(async () => {
@@ -201,6 +202,27 @@
                     {/if}
                 </button>
             </div>
+
+            <button
+                onclick={leaveRoom}
+                class="flex w-full items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 transition hover:bg-red-500/20 hover:border-red-500/50"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                </svg>
+                Leave Room
+            </button>
 
             <!-- User count -->
             <div class="text-sm text-text-secondary">

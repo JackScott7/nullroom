@@ -105,8 +105,10 @@
             return;
         }
         wsConnect(user);
-        wsGetPublicRooms(user);
         wsSendNameColor(user, selectedColor);
+        setInterval(() => {
+            wsGetPublicRooms(user);
+        }, 10000);
     });
 </script>
 
