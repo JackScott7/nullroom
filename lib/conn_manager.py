@@ -1,5 +1,6 @@
 from lib.chat_room import ChatRoom
 from lib.nulluser import NullUser
+from lib.util import VisibilityPolicy
 
 
 class ContextManager:
@@ -12,11 +13,11 @@ class ContextManager:
         self.active_connections.append(user)
 
     async def disconnect(self, user: NullUser):
-        await self.broadcast(f"Client '{user.username}' Disconnected")
+        await user.connection.close()
         self.active_connections.remove(user)
 
-    async def broadcast(self, data):
-        _ = [await conn.connection.send_text(data) for conn in self.active_connections]
+    async def broadcast_all(self, data: dict):
+        _ = [await conn.connection.send_json(data) for conn in self.active_connections if not conn.room]
 
     def find_user(self, username: str) -> NullUser | None:
         for conn in self.active_connections:
@@ -24,8 +25,8 @@ class ContextManager:
                 return conn
         return None
 
-    def search_room(self, name) -> ChatRoom | None:
-        found = [room for room in  self.__rooms if room.name == name]
+    def search_room(self, room_id) -> ChatRoom | None:
+        found = [room for room in  self.__rooms if room.room_id == room_id]
         if found:
             return found[0]
         return None
@@ -33,4 +34,6 @@ class ContextManager:
     def add_room(self, room: ChatRoom) -> None:
         self.__rooms.append(room)
 
+    def get_all_public_rooms(self) -> list[ChatRoom]:
+        return [x for x in self.__rooms if x.visibility == VisibilityPolicy.public]
 

@@ -2,5 +2,5 @@ from enum import Enum
 
 
 class VisibilityPolicy(Enum):
-    PUBLIC = 0
-    PRIVATE = 1
+    public = 0
+    private = 1

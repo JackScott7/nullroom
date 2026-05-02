@@ -1,8 +1,9 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from lib.chat_room import ChatRoom
 from lib.conn_manager import ContextManager
+from lib.message_protocol import MessageProtocol
 from lib.nulluser import NullUser
 from lib.util import VisibilityPolicy
 
@@ -21,15 +22,121 @@ app.add_middleware(
 ws_manager = ContextManager()
 
 
-@app.websocket("/api/ws/{client_id}")
-async def websocket_endpoint(ws: WebSocket, client_id: str):
-    user = NullUser(client_id, ws)
+async def handle_join_room(payload: dict):
+    data = payload["data"]
+    username = payload["username"]
+    ws = payload["ws"]
+
+    room_id = data.get("room_id")
+    room = ws_manager.search_room(room_id)
+    user = ws_manager.find_user(username)
+    if room:
+        await ws.send_json({
+            "type": "room_joined",
+            "room": room.to_dict
+        })
+        room.join_user(user)
+        await room.broadcast({
+            "type": "user_joined",
+            "username": username,
+            "color": user.color
+        }, user.username)
+        return
+    await ws.send_json({
+        "type": MessageProtocol.ROOM_NOT_FOUND.name,
+    })
+
+
+async def handle_leave_room(payload: dict):
+    pass
+
+
+async def handle_set_username_color(payload: dict):
+    username = payload["username"]
+    data = payload["data"]
+    ws = payload["ws"]
+    user = ws_manager.find_user(username)
+    if user:
+        user.color = data.get("color")
+        await ws.send_json({"success": True})
+
+
+async def get_all_public_rooms(payload: dict):
+    public_rooms = ws_manager.get_all_public_rooms()
+    ws = payload["ws"]
+    await ws.send_json({
+        "type": "public_rooms",
+        "data": [x.to_dict for x in public_rooms]
+    })
+
+
+async def handle_room_creation(payload):
+    data = payload["data"]
+    ws = payload["ws"]
+
+    user = ws_manager.find_user(data.get("user"))
+    room = ChatRoom(
+        data.get("name"),
+        data.get("maxClients"),
+        user,
+        visibility=VisibilityPolicy.public if data.get("visibility") == 'public' else VisibilityPolicy.private
+    )
+    user.is_host = True
+    ws_manager.add_room(room)
+    room.join_user(user)
+
+    await ws.send_json({
+        "type": "room_created",
+        "room": room.to_dict
+    })
+
+    # if this room is PUBLIC, Broadcast it to all users that don't have a room
+    await ws_manager.broadcast_all({
+        "type": "new_room_available",
+        "room": room.to_dict
+    })
+
+
+@app.websocket("/api/ws/{username}")
+async def websocket_endpoint(ws: WebSocket, username: str):
+    existing = ws_manager.find_user(username)
+    if existing:
+        try:
+            await existing.connection.close(4004, "user already exists")
+        except Exception as e:
+            pass
+
+    user = NullUser(username, ws)
     await ws_manager.connect(user)
     try:
         while True:
-            data = await ws.receive_text()
-            await ws_manager.broadcast(data)
+            data = await ws.receive_json()
+            message_type = MessageProtocol(data.get("type"))
+            payload = {
+                "ws": ws,
+                "username": username,
+                "data": data
+            }
+            match message_type:
+                case message_type.JOIN_ROOM:
+                    await handle_join_room(payload)
+                case message_type.LEAVE_ROOM:
+                    await handle_leave_room(payload)
+                case message_type.SET_COLOR:
+                    await handle_set_username_color(payload)
+                case message_type.GET_ROOMS:
+                    await get_all_public_rooms(payload)
+                case message_type.CREATE_ROOM:
+                    await handle_room_creation(payload)
+
+
     except WebSocketDisconnect:
+        if user.room:
+            user.room.leave(user)
+            await user.room.broadcast({
+                "type": "user_left",
+                "username": username,
+            }, exclude=username)
         await ws_manager.disconnect(user)
 
 
@@ -56,31 +163,8 @@ async def is_user_available(request: Request):
 
 @app.get("/api/conns")
 def get_conns():
-    print(ws_manager.active_connections)
-    return JSONResponse(status_code=200, content={"no_connections": len(ws_manager.active_connections)})
-
-
-@app.post("/api/create-room")
-async def create_room(request: Request):
-    data = await request.json()
-
-    room = ChatRoom(
-        data.get("name"),
-        data.get("maxClients"),
-        ws_manager.find_user(data.get("user")),
-        visibility=VisibilityPolicy.PUBLIC if data.get("visibility") == 'public' else VisibilityPolicy.PRIVATE
-    )
-
-    ws_manager.add_room(room)
-
-    return JSONResponse(status_code=201, content={"status": "created", "room": room.to_dict})
-
-
-@app.get("/api/rooms/{room_name}")
-async def get_room(room_name: str):
-    room = ws_manager.search_room(room_name)
-    if room:
-        return JSONResponse(status_code=200, content={"success": True, "data": room.to_dict})
-    else:
-        return JSONResponse(status_code=404, content={"success": False})
-
+    return JSONResponse(status_code=200, content={
+        "users": [
+            {"name": x.username, "color": x.color} for x in ws_manager.active_connections
+        ]
+    })
