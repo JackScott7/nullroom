@@ -7,6 +7,8 @@
         publicRooms,
         wsCreateRoom,
         createdRoom,
+        onlineUsersCount,
+        getOnlineUsersCount
     } from "$lib/stores/websocket";
     import { goto } from "$app/navigation";
 
@@ -116,6 +118,7 @@
         wsConnect(user);
         wsSendNameColor(user, selectedColor);
         wsGetPublicRooms(user);
+        getOnlineUsersCount();
 
         // room refetch countdown
         countdownInterval = setInterval(() => {
@@ -124,6 +127,7 @@
             } else {
                 countdown = 20;
                 wsGetPublicRooms(user);
+                getOnlineUsersCount();
             }
         }, 1000);
 
@@ -205,20 +209,38 @@
             class="w-72 border-l border-border bg-bg-secondary/50 p-6 flex flex-col gap-8"
         >
             <div
-                class="flex items-center justify-between rounded-lg border border-white/20 bg-bg-primary px-4 py-2 text-xs text-text-secondary"
+                class="flex flex-col gap-3 rounded-xl border border-white/20 bg-bg-primary px-4 py-3"
             >
-                <div class="flex items-center gap-2">
-                    <svg
-                        class="h-4 w-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        stroke-width="2"
-                    >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 6v6l4 2" />
-                    </svg>
-                    <span>Fetching new rooms in {countdown}s</span>
+                <div
+                    class="flex items-center justify-between rounded-lg border border-border bg-bg-secondary/70 px-3 py-2 text-sm text-text-secondary"
+                >
+                    <div class="flex items-center gap-2">
+                        <span class="h-2.5 w-2.5 rounded-full bg-green-400"></span>
+                        <span>Online Users</span>
+                    </div>
+                    <span class="font-semibold text-text-primary">
+                        {$onlineUsersCount}
+                    </span>
+                </div>
+                <div
+                    class="flex items-center justify-between rounded-lg border border-border bg-bg-secondary/70 px-3 py-2 text-sm text-text-secondary"
+                >
+                    <div class="flex items-center gap-2">
+                        <svg
+                            class="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            stroke-width="2"
+                        >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span>Fetching new rooms</span>
+                    </div>
+                    <span class="font-semibold text-text-primary">
+                        {countdown}s
+                    </span>
                 </div>
             </div>
             <!-- Create Room button -->

@@ -7,6 +7,7 @@ export const messages = writable<Message[]>([]);
 export const users = writable<User[]>([]);
 export const publicRooms = writable<Room[]>([]);
 export const createdRoom = writable<Room | null>(null);
+export const onlineUsersCount = writable<number>(0);
 
 let ws: WebSocket | undefined;
 let outgoingQueue: string[] = [];
@@ -82,6 +83,9 @@ function handleServerMessage(msg: any) {
         case 'room_closed':
             currentRoom.set(null);
             location.href = '/rooms';
+            break;
+        case 'user_count':
+            onlineUsersCount.set(msg.online_users);
             break;
     }
 }
@@ -175,5 +179,11 @@ export function wsLeaveRoom(roomId: string) {
         type: 'leave_room',
         roomId: roomId,
         username: currentUsername
+    }));
+}
+
+export function getOnlineUsersCount() {
+    send(JSON.stringify({
+        type: "get_online_users_count"
     }));
 }
