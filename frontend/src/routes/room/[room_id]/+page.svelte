@@ -207,6 +207,9 @@
                         type="text"
                         bind:value={inputText}
                         placeholder="Type a message..."
+                        spellcheck="true"
+                        autocorrect="on"
+                        autocapitalize="sentences"
                         class="flex-1 rounded-lg border border-border bg-bg-primary px-4 py-3 text-text-primary outline-none placeholder:text-text-secondary/70 focus:border-accent focus:shadow-[0_0_0_3px_rgba(88,166,255,0.15)]"
                         onkeydown={handleKeydown}
                     />
