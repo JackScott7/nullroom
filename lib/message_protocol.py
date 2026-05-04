@@ -10,4 +10,4 @@ class MessageProtocol(StrEnum):
     ROOM_NOT_FOUND = "room_not_found"
     SET_COLOR = "set_color"
     GET_PUBLIC_ROOMS = "get_public_rooms"
-
+    GET_ONLINE_USERS_COUNT = "get_online_users_count"

@@ -151,6 +151,14 @@ async def broadcast_message_to_room(payload):
     await room.broadcast(broadcast_payload, exclude=None)
 
 
+async def get_online_users_count(payload):
+    ws = payload["ws"]
+    user_count = ws_manager.get_online_user_count()
+    await ws.send_json({
+        "type": "user_count",
+        "online_users": user_count
+    })
+
 
 @app.websocket("/api/ws/{username}")
 async def websocket_endpoint(ws: WebSocket, username: str):
@@ -184,6 +192,8 @@ async def websocket_endpoint(ws: WebSocket, username: str):
                     await handle_room_creation(payload)
                 case message_type.SEND_CHAT_MESSAGE:
                     await broadcast_message_to_room(payload)
+                case message_type.GET_ONLINE_USERS_COUNT:
+                    await get_online_users_count(payload)
 
 
     except WebSocketDisconnect:

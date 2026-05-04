@@ -55,3 +55,6 @@ class ContextManager:
     def remove_room(self, room: ChatRoom) -> None:
         self.__rooms.remove(room)
 
+    def get_online_user_count(self) -> int:
+        return len(self.active_connections)
+
