@@ -158,6 +158,7 @@
                         <!-- Rounded message bubble -->
                         <div
                             class="w-fit max-w-[80%] rounded-xl border border-border bg-bg-secondary px-4 py-3 shadow-sm"
+                            style={`border: 2px solid ${msg.color}`}
                         >
                             <!-- Username – top left -->
                             <span
