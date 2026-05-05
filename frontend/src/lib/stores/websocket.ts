@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import type { Room, Message, User } from './interfaces';
 import { generateTempId } from './utils';
+import { setRandomNameColor } from '$lib';
 
 export const currentRoom = writable<Room | null>(null);
 export const messages = writable<Message[]>([]);
@@ -8,6 +9,7 @@ export const users = writable<User[]>([]);
 export const publicRooms = writable<Room[]>([]);
 export const createdRoom = writable<Room | null>(null);
 export const onlineUsersCount = writable<number>(0);
+export const joinRoomStatus = writable<'idle' | 'success' | 'room_full' | 'room_not_found'>('idle');
 
 let ws: WebSocket | undefined;
 let outgoingQueue: string[] = [];
@@ -35,6 +37,7 @@ function handleServerMessage(msg: any) {
             currentRoom.set(msg.room);
             users.set(msg.room.users);
             messages.set([]);
+            joinRoomStatus.set('success');
             break;
         case 'user_joined':
             users.set(msg.room_users)
@@ -82,10 +85,18 @@ function handleServerMessage(msg: any) {
             break;
         case 'room_closed':
             currentRoom.set(null);
-            location.href = '/rooms';
+            window.location.href = '/rooms';
             break;
         case 'user_count':
             onlineUsersCount.set(msg.online_users);
+            break;
+        case 'room_full':
+            currentRoom.set(null);
+            joinRoomStatus.set('room_full');
+            break;
+        case 'room_not_found':
+            currentRoom.set(null);
+            joinRoomStatus.set('room_not_found');
             break;
     }
 }
@@ -118,11 +129,13 @@ export function wsConnect(username: string) {
 }
 
 export function wsJoinRoom(roomId: string) {
+    joinRoomStatus.set('idle');
     send(JSON.stringify(
         {
             type: 'join_room',
             room_id: roomId,
-            user: currentUsername
+            user: currentUsername,
+            color: localStorage.getItem("nr_color") || setRandomNameColor()
         }
     ));
 }
