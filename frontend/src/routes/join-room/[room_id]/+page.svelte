@@ -2,7 +2,12 @@
     import { page } from "$app/state";
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
-    import { wsConnect, wsJoinRoom, currentRoom } from "$lib/stores/websocket";
+    import {
+        wsConnect,
+        wsJoinRoom,
+        currentRoom,
+        joinRoomStatus,
+    } from "$lib/stores/websocket";
 
     const roomId = page.params.room_id;
     let currentUser = $state("");
@@ -15,23 +20,37 @@
     async function fetchRoomInfo() {
         try {
             wsJoinRoom(roomId!);
-            
-            success = true;
-            setTimeout(() => {
-                goto(`/room/${roomId}`);
-            }, 500);
-
         } catch (e) {
             error = "Network error. Please try again.";
-        } finally {
             loading = false;
         }
     }
 
+    $effect(() => {
+        const status = $joinRoomStatus;
+
+        if (status === "success") {
+            loading = false;
+            error = "";
+            success = true;
+            setTimeout(() => {
+                goto(`/room/${roomId}`);
+            }, 500);
+        } else if (status === "room_full") {
+            loading = false;
+            success = false;
+            error = "Room is full.";
+        } else if (status === "room_not_found") {
+            loading = false;
+            success = false;
+            error = "Room not found.";
+        }
+    });
+
     onMount(() => {
         const stored = localStorage.getItem("nr_username");
         if (!stored) {
-            window.location.href = "/";
+            goto(`/?redirectUrl=${page.url.pathname}`);
             return;
         }
         currentUser = stored;

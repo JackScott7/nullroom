@@ -61,7 +61,8 @@
                 
                 showNotification(`Welcome, ${username}!`, true);
                 setTimeout(() => {
-                    const redirectUrl = page.url.searchParams.get('redirectUrl')
+                    const redirectUrl = page.url.searchParams.get('redirectUrl');
+                    console.log(redirectUrl);
                     if (redirectUrl) {
                         goto(redirectUrl)
                         return;

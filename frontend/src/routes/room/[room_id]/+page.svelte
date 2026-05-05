@@ -10,8 +10,10 @@
         wsSendChatMessage,
         wsLeaveRoom,
         wsSendNameColor,
+        joinRoomStatus
     } from "$lib/stores/websocket";
     import { goto } from "$app/navigation";
+    import { setRandomNameColor } from "$lib";
 
     const roomId = page.params.room_id;
     let currentUser = $state("");
@@ -47,7 +49,7 @@
     function leaveRoom() {
         wsLeaveRoom(roomId!);
 
-        goto("/rooms");
+        window.location.href = "/rooms";
     }
 
     function handleKeydown(e: KeyboardEvent) {
@@ -70,11 +72,20 @@
         }
     });
 
+    $effect(() => {
+        const status = $joinRoomStatus;
+
+        if (status === "room_full" || status === "room_not_found") {
+            currentRoom.set(null);
+            window.location.href = "/rooms";
+        }
+    });
+
     onMount(async () => {
         // Retrieve logged-in user
         const stored = localStorage.getItem("nr_username");
         if (!stored) {
-            window.location.href = "/";
+            goto("/");
             return;
         }
         currentUser = stored;
@@ -85,6 +96,10 @@
         const nr_color = localStorage.getItem('nr_color');
         if (nr_color) {
             wsSendNameColor(currentUser, nr_color);
+        }
+        else {
+            const color = setRandomNameColor();
+            wsSendNameColor(currentUser, color);
         }
     });
 </script>

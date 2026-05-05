@@ -8,22 +8,14 @@
         wsCreateRoom,
         createdRoom,
         onlineUsersCount,
-        getOnlineUsersCount
+        getOnlineUsersCount,
     } from "$lib/stores/websocket";
+
     import { goto } from "$app/navigation";
+    import { nameColors, setRandomNameColor } from "$lib";
 
-    let user: string = $state("");
+    let currentUser: string = $state("");
 
-    const nameColors = [
-        "#f87171",
-        "#fb923c",
-        "#facc15",
-        "#4ade80",
-        "#2dd4bf",
-        "#60a5fa",
-        "#a78bfa",
-        "#f472b6",
-    ];
     let selectedColor = $state("");
 
     let showModal = $state(false);
@@ -73,7 +65,7 @@
             return;
         }
 
-        wsCreateRoom(user, roomName, maxClients, visibility);
+        wsCreateRoom(currentUser, roomName, maxClients, visibility);
 
         closeModal();
     }
@@ -87,7 +79,7 @@
 
     function selectNameColor(color: string) {
         selectedColor = color;
-        wsSendNameColor(user, color);
+        wsSendNameColor(currentUser, color);
         localStorage.setItem("nr_color", color);
     }
 
@@ -100,24 +92,24 @@
     });
 
     onMount(() => {
-        user = localStorage.getItem("nr_username") || "";
-        if (!user) {
-            location.href = "/";
+        currentUser = localStorage.getItem("nr_username") || "";
+        if (!currentUser) {
+            goto("/");
             return;
         }
 
-        const savedColor = localStorage.getItem("nr_color");
-        if (savedColor) {
-            selectedColor = savedColor;
-        } else {
-            selectedColor =
-                nameColors[Math.floor(Math.random() * nameColors.length)];
-            localStorage.setItem("nr_color", selectedColor);
+        const nr_color = localStorage.getItem('nr_color');
+        if (nr_color) {
+            wsSendNameColor(currentUser, nr_color);
+        }
+        else {
+            const color = setRandomNameColor();
+            wsSendNameColor(currentUser, color);
         }
 
-        wsConnect(user);
-        wsSendNameColor(user, selectedColor);
-        wsGetPublicRooms(user);
+        wsConnect(currentUser);
+        wsSendNameColor(currentUser, selectedColor);
+        wsGetPublicRooms(currentUser);
         getOnlineUsersCount();
 
         // room refetch countdown
@@ -126,7 +118,7 @@
                 countdown--;
             } else {
                 countdown = 20;
-                wsGetPublicRooms(user);
+                wsGetPublicRooms(currentUser);
                 getOnlineUsersCount();
             }
         }, 1000);
@@ -171,7 +163,7 @@
                 class="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
             >
                 {#each $publicRooms as room (room.roomId)}
-                    <a href="/join-room/{room.roomId}">
+                    <a href="/room/{room.roomId}">
                         <div
                             class="relative flex h-48 flex-col justify-between rounded-xl border border-border bg-bg-secondary p-5 transition hover:border-accent"
                         >
@@ -194,9 +186,24 @@
                                         d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
                                     />
                                 </svg>
-                                <span class="text-sm"
-                                    >{room.users.length} / {room.maxClients}</span
-                                >
+                                <div class="flex w-full items-center justify-between gap-3">
+                                    <span class="text-sm text-right"
+                                        >{room.users.length} / {room.maxClients}</span
+                                    >
+                                    {#if room.users.length < room.maxClients}
+                                        <span
+                                            class="text-xs font-medium text-green-400 text-right"
+                                        >
+                                            Available
+                                        </span>
+                                    {:else}
+                                        <span
+                                            class="text-xs font-medium text-red-400 text-right"
+                                        >
+                                            Full
+                                        </span>
+                                    {/if}
+                                </div>
                             </div>
                         </div>
                     </a>
@@ -215,7 +222,8 @@
                     class="flex items-center justify-between rounded-lg border border-border bg-bg-secondary/70 px-3 py-2 text-sm text-text-secondary"
                 >
                     <div class="flex items-center gap-2">
-                        <span class="h-2.5 w-2.5 rounded-full bg-green-400"></span>
+                        <span class="h-2.5 w-2.5 rounded-full bg-green-400"
+                        ></span>
                         <span>Online Users</span>
                     </div>
                     <span class="font-semibold text-text-primary">
@@ -267,11 +275,11 @@
 
             <!-- Name color picker -->
             <div>
-                <label
+                <p
                     class="mb-3 block text-xs font-semibold uppercase tracking-wider text-text-secondary"
                 >
                     Select your name color
-                </label>
+                </p>
                 <div class="grid grid-cols-4 gap-3">
                     {#each nameColors as color}
                         <button
