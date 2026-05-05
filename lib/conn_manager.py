@@ -21,18 +21,19 @@ class ContextManager:
         except Exception:
             pass
 
-    async def broadcast_all(self, data: dict):
+    async def broadcast_all(self, data: dict, exclude: str | None = None):
         dead = []
         for conn in self.active_connections:
             if conn.room is None:
                 try:
+                    if conn.username == exclude:
+                        continue
                     await conn.connection.send_json(data)
                 except Exception:
                     pass
         for conn in dead:
             if conn in self.active_connections:
                 self.active_connections.remove(conn)
-        # _ = [await conn.connection.send_json(data) for conn in self.active_connections if not conn.room]
 
     def find_user(self, username: str) -> NullUser | None:
         for conn in self.active_connections:

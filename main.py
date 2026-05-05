@@ -31,30 +31,48 @@ async def handle_join_room(payload: dict):
     room_id = data.get("room_id")
     room = ws_manager.search_room(room_id)
     user = ws_manager.find_user(username)
-    if room:
+
+    if color := data.get("color"):
+        user.color = color
+
+    if not room:
         await ws.send_json({
-            "type": "room_joined",
-            "room": room.to_dict
+            "type": MessageProtocol.ROOM_NOT_FOUND.value,
         })
-
-        room.join_user(user)
-        await room.broadcast({
-            "type": "user_joined",
-            "username": username,
-            "color": user.color,
-            "room_users": room.to_dict["users"]
-        }, exclude=None)
-
         return
+
+    if len(room.users) >= room.max_clients:
+        await ws.send_json({
+            "type": "room_full",
+        })
+        return
+
+    if user not in room.users:
+        room.join_user(user)
+
     await ws.send_json({
-        "type": MessageProtocol.ROOM_NOT_FOUND.name,
+        "type": "room_joined",
+        "room": room.to_dict
     })
+
+    await room.broadcast({
+        "type": "user_joined",
+        "username": username,
+        "user_id": user.id,
+        "color": user.color,
+        "room_users": room.to_dict["users"]
+    }, exclude=None)
+
+    await ws_manager.broadcast_all({
+        "type": "new_room_available",
+        "room": room.to_dict
+    }, exclude=username)
 
 
 async def handle_leave_room(payload: dict):
     data = payload["data"]
     username = data.get("username")
-    room_id = data["roomId"]
+    room_id = data.get("roomId")
 
     user = ws_manager.find_user(username)
 
@@ -62,9 +80,11 @@ async def handle_leave_room(payload: dict):
     if not room:
         return
 
-    if user.is_host:
+    if room.host.username == username and user.is_host:
         # if host leaves the room, dc all users and redirect them to /rooms
         _ = [room.leave(x) for x in room.users]
+        # prevent case condition where a previous host can be the next host of a room that they joined
+        user.is_host = False
         ws_manager.remove_room(room)
         await room.broadcast({
             "type": "room_closed",
@@ -72,12 +92,22 @@ async def handle_leave_room(payload: dict):
         })
     else:
         room.leave(user)
+
+        if len(room.users) < 1:
+            await room.broadcast({
+                "type": "room_closed",
+                "message": "You are not the host"
+            })
+            ws_manager.remove_room(room)
+            return
+
         await room.broadcast({
             "type": "user_left",
             "username": username,
+            "user_id": user.id,
             "color": user.color,
             "room_space": len(room.users)
-        }, exclude=username)
+        }, exclude=None)
 
 
 async def handle_set_username_color(payload: dict):
@@ -111,6 +141,7 @@ async def handle_room_creation(payload):
         visibility=VisibilityPolicy.public if data.get("visibility") == 'public' else VisibilityPolicy.private
     )
     user.is_host = True
+    # room.host = user
     ws_manager.add_room(room)
     room.join_user(user)
 
@@ -124,7 +155,7 @@ async def handle_room_creation(payload):
         await ws_manager.broadcast_all({
             "type": "new_room_available",
             "room": room.to_dict
-        })
+        }, exclude=user.username)
 
 
 async def broadcast_message_to_room(payload):
@@ -194,14 +225,13 @@ async def websocket_endpoint(ws: WebSocket, username: str):
                     await broadcast_message_to_room(payload)
                 case message_type.GET_ONLINE_USERS_COUNT:
                     await get_online_users_count(payload)
-
-
     except WebSocketDisconnect:
         if user.room:
             user.room.leave(user)
             await user.room.broadcast({
                 "type": "user_left",
                 "username": username,
+                "user_id": user.id
             }, exclude=username)
         await ws_manager.disconnect(user)
 

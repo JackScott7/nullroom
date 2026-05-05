@@ -1,4 +1,5 @@
 from fastapi import WebSocket
+from uuid import uuid4
 
 
 class NullUser:
@@ -8,6 +9,7 @@ class NullUser:
         self.is_host: bool = is_host
         self.room = None
         self.__color: str | None = None
+        self.__id = f"{self.username}-{uuid4()}"
 
     def __str__(self):
         return f"{self.username} {self.color}"
@@ -19,3 +21,7 @@ class NullUser:
     @color.setter
     def color(self, value):
         self.__color = value
+
+    @property
+    def id(self):
+        return self.__id

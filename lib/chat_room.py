@@ -23,8 +23,9 @@ class ChatRoom:
             "users": [
                 {
                     "username": user.username,
-                    "isHost": user.is_host,
-                    "color": user.color
+                    "isHost": user.id == self.host.id,
+                    "color": user.color,
+                    "user_id": user.id
                 } for user in self.users
             ]
         }
@@ -48,6 +49,9 @@ class ChatRoom:
             user.room = None
 
     def leave(self, user: NullUser):
-        self.users.remove(user)
-        user.room = None
+        try:
+            self.users.remove(user)
+            user.room = None
+        except ValueError:
+            user.room = None
 
