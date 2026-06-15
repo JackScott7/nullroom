@@ -2,9 +2,13 @@
 
 Realtime public/private chat rooms built with FastAPI WebSockets and SvelteKit.
 
+---
+
 ## Why I built this
 
 Nullroom is a realtime chat-room platform designed around temporary rooms, simple joining, user presence, and fast message delivery.
+
+---
 
 ## Features
 
@@ -18,12 +22,13 @@ Nullroom is a realtime chat-room platform designed around temporary rooms, simpl
 - SvelteKit frontend
 - FastAPI backend
 
+---
+
 ## Tech Stack
 
 Backend:
 - Python
 - FastAPI
-- WebSocket
 - Pydantic
 
 Frontend:
@@ -32,10 +37,14 @@ Frontend:
 - TailwindCSS
 - Vite
 
+---
+
 ## Architecture
 
 Frontend connects to the FastAPI backend through a WebSocket endpoint.
 The backend manages active users, rooms, room membership, and message broadcasting in memory.
+
+---
 
 ## Screenshots
 
@@ -44,6 +53,8 @@ The backend manages active users, rooms, room membership, and message broadcasti
 <img width="1917" height="912" alt="image" src="https://github.com/user-attachments/assets/9b4973b9-ed4b-48f6-8cf0-d28ad0b224af" />
 <img width="1915" height="913" alt="image" src="https://github.com/user-attachments/assets/a788a83c-c046-4c76-b8c1-cbe4d024d996" />
 
+
+---
 
 ## WebSocket Events
 
@@ -57,11 +68,39 @@ The backend manages active users, rooms, room membership, and message broadcasti
 | user_left | Server -> Client | Broadcasts user left |
 | message_sent | Server -> Client | Broadcasts chat message |
 
+---
+
+## Run Locally
+
+### Backend
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+fastapi run
+```
+
+---
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+npx vite --host 0.0.0.0 --port 5173
+```
+
+---
+
 ## Limitations
 
 - Rooms are stored in memory
 - Messages are not persisted
 - Designed as a realtime architecture/demo project
+
+---
 
 ## Roadmap
 
