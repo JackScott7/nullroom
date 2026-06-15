@@ -41,11 +41,6 @@
         inputText = "";
     }
 
-    function kickUser(username: string) {
-        // TODO: send kick command via WebSocket
-        $users = $users.filter((u) => u.username !== username);
-    }
-
     function leaveRoom() {
         wsLeaveRoom(roomId!);
 
@@ -357,7 +352,6 @@
                             {#if isHost && user.username !== currentUser}
                                 <button
                                     class="text-xs text-text-secondary opacity-0 hover:text-red-400 group-hover:opacity-100 transition"
-                                    onclick={() => kickUser(user.username)}
                                     title="Kick user"
                                 >
                                     ✕
