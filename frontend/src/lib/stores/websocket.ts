@@ -11,6 +11,7 @@ export const createdRoom = writable<Room | null>(null);
 export const onlineUsersCount = writable<number>(0);
 export const joinRoomStatus = writable<'idle' | 'success' | 'room_full' | 'room_not_found'>('idle');
 
+const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL ?? "ws://127.0.0.1:8000";
 let ws: WebSocket | undefined;
 let outgoingQueue: string[] = [];
 let currentUsername: string | undefined;
@@ -111,7 +112,7 @@ export function wsConnect(username: string) {
     }
 
     currentUsername = username
-    ws = new WebSocket(`ws://127.0.0.1:8000/api/ws/${username}`);
+    ws = new WebSocket(`${WS_BASE_URL}/api/ws/${username}`);
 
     ws.onopen = () => {
         flushQueue();
