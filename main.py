@@ -220,12 +220,6 @@ async def authenticate_user(payload):
         await ws_manager.disconnect(NullUser(username, ws))
 
 
-async def logout_current_user(payload):
-    ws = payload["ws"]
-    username = payload["username"]
-
-
-
 @nullroom.websocket("/api/ws/{username}")
 async def websocket_endpoint(ws: WebSocket, username: str):
     existing = ws_manager.find_user(username)
