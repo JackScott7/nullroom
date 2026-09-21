@@ -1,24 +1,28 @@
-from datetime import datetime
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import JSONResponse
+from datetime import datetime, timezone
+
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 from lib.chat_room import ChatRoom
 from lib.conn_manager import ContextManager
 from lib.message_protocol import MessageProtocol
 from lib.nulluser import NullUser
 from lib.util import VisibilityPolicy
 
-
-app = FastAPI(title="Nullroom")
+nullroom = FastAPI(title="Nullroom")
 origins = [
+    "http://127.0.0.1",
+    "http://127.0.0.1:5173",
     "http://localhost",
     "http://localhost:5173"
 ]
-app.add_middleware(
+nullroom.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"]
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 ws_manager = ContextManager()
 
@@ -31,6 +35,9 @@ async def handle_join_room(payload: dict):
     room_id = data.get("room_id")
     room = ws_manager.search_room(room_id)
     user = ws_manager.find_user(username)
+
+    if user is None:
+        return
 
     if color := data.get("color"):
         user.color = color
@@ -51,20 +58,20 @@ async def handle_join_room(payload: dict):
         room.join_user(user)
 
     await ws.send_json({
-        "type": "room_joined",
+        "type": MessageProtocol.ROOM_JOINED.value,
         "room": room.to_dict
     })
 
     await room.broadcast({
-        "type": "user_joined",
+        "type": MessageProtocol.USER_JOINED.value,
         "username": username,
         "user_id": user.id,
         "color": user.color,
         "room_users": room.to_dict["users"]
-    }, exclude=None)
+    }, exclude=username)
 
     await ws_manager.broadcast_all({
-        "type": "new_room_available",
+        "type": MessageProtocol.NEW_ROOM_AVAILABLE.value,
         "room": room.to_dict
     }, exclude=username)
 
@@ -75,6 +82,8 @@ async def handle_leave_room(payload: dict):
     room_id = data.get("roomId")
 
     user = ws_manager.find_user(username)
+    if user is None:
+        return
 
     room = ws_manager.search_room(room_id)
     if not room:
@@ -83,7 +92,7 @@ async def handle_leave_room(payload: dict):
     if room.host.username == username and user.is_host:
         # if host leaves the room, dc all users and redirect them to /rooms
         _ = [room.leave(x) for x in room.users]
-        # prevent case condition where a previous host can be the next host of a room that they joined
+        # prevent a case where previous host will be the next host of a room that they join
         user.is_host = False
         ws_manager.remove_room(room)
         await room.broadcast({
@@ -134,6 +143,10 @@ async def handle_room_creation(payload):
     ws = payload["ws"]
 
     user = ws_manager.find_user(data.get("user"))
+
+    if user is None:
+        return
+
     room = ChatRoom(
         data.get("name"),
         data.get("maxClients"),
@@ -146,14 +159,14 @@ async def handle_room_creation(payload):
     room.join_user(user)
 
     await ws.send_json({
-        "type": "room_created",
+        "type": MessageProtocol.ROOM_CREATED.value,
         "room": room.to_dict
     })
 
     # if this room is PUBLIC, Broadcast it to all users that don't have a room
     if room.visibility == VisibilityPolicy.public:
         await ws_manager.broadcast_all({
-            "type": "new_room_available",
+            "type": MessageProtocol.NEW_ROOM_AVAILABLE.value,
             "room": room.to_dict
         }, exclude=user.username)
 
@@ -171,11 +184,11 @@ async def broadcast_message_to_room(payload):
     sender_user = ws_manager.find_user(sender_name)
     color = sender_user.color if sender_user else "#ffffff"
     broadcast_payload = {
-        "type": "message_sent",
+        "type": MessageProtocol.MESSAGE_SENT.value,
         "text": message_text,
         "sender": sender_name,
         "color": color,
-        "time": datetime.now().strftime("%H:%M:%S"),
+        "time": datetime.now(tz=timezone.utc).strftime("%H:%M:%S"),
         "tempId": temp_id
     }
 
@@ -191,7 +204,7 @@ async def get_online_users_count(payload):
     })
 
 
-@app.websocket("/api/ws/{username}")
+@nullroom.websocket("/api/ws/{username}")
 async def websocket_endpoint(ws: WebSocket, username: str):
     existing = ws_manager.find_user(username)
     if existing:
@@ -236,7 +249,7 @@ async def websocket_endpoint(ws: WebSocket, username: str):
         await ws_manager.disconnect(user)
 
 
-@app.post("/api/is-user-available")
+@nullroom.post("/api/is-user-available")
 async def is_user_available(request: Request):
     if not await request.body():
         return JSONResponse(status_code=400, content={"status": "error_no_body"})
@@ -250,14 +263,14 @@ async def is_user_available(request: Request):
     if not username:
         return JSONResponse(status_code=400, content={"status": "error_empty_username"})
 
-    is_available = ws_manager.find_user(username)
-    if not is_available:
-        return JSONResponse(status_code=200, content={"status": "available"})
-    else:
+    taken = ws_manager.find_user(username)
+    if taken:
         return JSONResponse(status_code=409, content={"status": "taken"})
 
+    return JSONResponse(status_code=200, content={"status": "available"})
 
-@app.get("/api/conns")
+
+@nullroom.get("/api/conns")
 def get_conns():
     return JSONResponse(status_code=200, content={
         "users": [
