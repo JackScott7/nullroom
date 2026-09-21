@@ -1,0 +1,12 @@
+[project]
+name = "nullroom"
+version = "0.1.0"
+description = "Disposable chat rooms that leave no trace."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+]
+
+[tool.fastapi]
+    entrypoint = "main:nullroom"
