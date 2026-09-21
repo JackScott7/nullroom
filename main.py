@@ -50,7 +50,7 @@ async def handle_join_room(payload: dict):
 
     if len(room.users) >= room.max_clients:
         await ws.send_json({
-            "type": "room_full",
+            "type": MessageProtocol.ROOM_FULL.value,
         })
         return
 
@@ -96,7 +96,7 @@ async def handle_leave_room(payload: dict):
         user.is_host = False
         ws_manager.remove_room(room)
         await room.broadcast({
-            "type": "room_closed",
+            "type": MessageProtocol.ROOM_CLOSED.value,
             "message": "Host has left the room"
         })
     else:
@@ -104,14 +104,14 @@ async def handle_leave_room(payload: dict):
 
         if len(room.users) < 1:
             await room.broadcast({
-                "type": "room_closed",
+                "type": MessageProtocol.ROOM_CLOSED.value,
                 "message": "You are not the host"
             })
             ws_manager.remove_room(room)
             return
 
         await room.broadcast({
-            "type": "user_left",
+            "type": MessageProtocol.USER_LEFT.value,
             "username": username,
             "user_id": user.id,
             "color": user.color,
@@ -133,7 +133,7 @@ async def get_all_public_rooms(payload: dict):
     public_rooms = ws_manager.get_all_public_rooms()
     ws = payload["ws"]
     await ws.send_json({
-        "type": "public_rooms",
+        "type": MessageProtocol.PUBLIC_ROOMS.value,
         "data": [x.to_dict for x in public_rooms]
     })
 
@@ -199,7 +199,7 @@ async def get_online_users_count(payload):
     ws = payload["ws"]
     user_count = ws_manager.get_online_user_count()
     await ws.send_json({
-        "type": "user_count",
+        "type": MessageProtocol.USER_COUNT.value,
         "online_users": user_count
     })
 
@@ -242,7 +242,7 @@ async def websocket_endpoint(ws: WebSocket, username: str):
         if user.room:
             user.room.leave(user)
             await user.room.broadcast({
-                "type": "user_left",
+                "type": MessageProtocol.USER_LEFT.value,
                 "username": username,
                 "user_id": user.id
             }, exclude=username)
