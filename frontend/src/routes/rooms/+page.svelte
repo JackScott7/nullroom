@@ -9,6 +9,8 @@
         createdRoom,
         onlineUsersCount,
         getOnlineUsersCount,
+        authenticateUser,
+        logout
     } from "$lib/stores/websocket";
 
     import { goto } from "$app/navigation";
@@ -64,8 +66,16 @@
             alert("Room name must be at least 4 characters.");
             return;
         }
-
-        wsCreateRoom(currentUser, roomName, maxClients, visibility);
+        let username = localStorage.getItem('nr_username');
+        if (username) {
+            authenticateUser(username);
+            wsCreateRoom(currentUser, roomName, maxClients, visibility);
+        }
+        else {
+            localStorage.setItem('nr_username', '');
+            localStorage.setItem('nr_color', '');
+            location.href = '/';
+        }
 
         closeModal();
     }
@@ -136,24 +146,35 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <div
-    class="min-h-screen bg-bg-primary text-text-primary font-[Inter,_-apple-system,_BlinkMacSystemFont,_'Segoe_UI',_sans-serif]"
+    class="min-h-screen bg-bg-primary text-text-primary font-[Inter,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif]"
 >
     <!-- ========== Top Navbar ========== -->
     <nav
-        class="fixed top-0 z-40 flex w-full items-center justify-between border-b border-border bg-bg-secondary/80 px-6 py-4 backdrop-blur-md"
-    >
-        <a href="/" class="text-xl font-bold tracking-tight">
-            Null<span class="text-accent">room</span>
-        </a>
+    class="fixed top-0 z-40 flex w-full items-center justify-between border-b border-border bg-bg-secondary/80 px-6 py-4 backdrop-blur-md"
+>
+    <a href="/" class="text-xl font-bold tracking-tight">
+        Null<span class="text-accent">room</span>
+    </a>
+
+    <div class="flex items-center gap-6">
         <a
             href="/about"
             class="text-sm text-text-secondary transition hover:text-accent"
-            >About</a
         >
-    </nav>
+            About
+        </a>
+
+        <button
+            onclick={logout}
+            class="text-sm text-text-secondary transition hover:text-accent"
+        >
+            Logout
+        </button>
+    </div>
+</nav>
 
     <!-- ========== Main layout ========== -->
-    <div class="flex h-screen pt-[65px]">
+    <div class="flex h-screen pt-16.25">
         <!-- Left: scrollable room list -->
         <main class="flex-1 overflow-y-auto px-6 pb-12">
             <h2 class="mb-6 mt-6 text-2xl font-semibold">

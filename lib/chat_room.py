@@ -1,4 +1,5 @@
 import uuid
+
 from lib.nulluser import NullUser
 from lib.util import VisibilityPolicy
 

@@ -204,6 +204,28 @@ async def get_online_users_count(payload):
     })
 
 
+async def authenticate_user(payload):
+    ws = payload["ws"]
+    data = payload["data"]
+    username = payload["username"]
+
+    auth = data.get('username') == username
+
+    await ws.send_json({
+        'type': MessageProtocol.AUTHENTICATION.value,
+        'authenticated': auth
+    })
+
+    if not auth:
+        await ws_manager.disconnect(NullUser(username, ws))
+
+
+async def logout_current_user(payload):
+    ws = payload["ws"]
+    username = payload["username"]
+
+
+
 @nullroom.websocket("/api/ws/{username}")
 async def websocket_endpoint(ws: WebSocket, username: str):
     existing = ws_manager.find_user(username)
@@ -238,6 +260,10 @@ async def websocket_endpoint(ws: WebSocket, username: str):
                     await broadcast_message_to_room(payload)
                 case message_type.GET_ONLINE_USERS_COUNT:
                     await get_online_users_count(payload)
+                case message_type.AUTHENTICATE_USER:
+                    await authenticate_user(payload)
+                case message_type.LOGOUT_CURRENT_USER:
+                    await ws_manager.disconnect(user)
     except WebSocketDisconnect:
         if user.room:
             user.room.leave(user)

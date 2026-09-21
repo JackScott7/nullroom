@@ -1,5 +1,6 @@
-from fastapi import WebSocket
 from uuid import uuid4
+
+from fastapi import WebSocket
 
 
 class NullUser:
