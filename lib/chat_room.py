@@ -35,6 +35,7 @@ class ChatRoom:
         if len(self.users) < self.max_clients:
             self.users = [x for x in self.users if x.username != user.username]
             self.users.append(user)
+            user.room = self
 
     async def broadcast(self, message: dict, exclude: str | None = None):
         dead_users = []
