@@ -24,6 +24,13 @@ function flushQueue() {
     }
 }
 
+export function authenticateUser(username: string) {
+    send(JSON.stringify({
+        type: 'authenticate_user',
+        username: username,
+    }));
+}
+
 function send(json: string) {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(json);
@@ -99,8 +106,29 @@ function handleServerMessage(msg: any) {
             currentRoom.set(null);
             joinRoomStatus.set('room_not_found');
             break;
+        case 'authentication':
+            if (msg.authenticated === false) {
+
+                localStorage.setItem('nr_username', '');
+                localStorage.setItem('nr_color', '');
+                location.href = '/';
+                break;
+            }
     }
 }
+
+
+export function logout() {
+    send(JSON.stringify({
+        type: 'logout_current_user',
+        username: currentUsername
+    }));
+
+    localStorage.setItem('nr_username', '');
+    localStorage.setItem('nr_color', '');
+    location.href = '/';
+}
+
 
 export function wsConnect(username: string) {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) && currentUsername === username) {

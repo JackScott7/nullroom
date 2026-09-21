@@ -7,6 +7,9 @@ class MessageProtocol(StrEnum):
     USER_LEFT = "user_left"
     USER_JOINED = "user_joined"
     USER_COUNT = "user_count"
+    AUTHENTICATE_USER = "authenticate_user"
+    AUTHENTICATION = "authentication"
+    LOGOUT_CURRENT_USER = "logout_current_user"
 
     JOIN_ROOM = "join_room"
     CREATE_ROOM = "create_room"

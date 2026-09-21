@@ -1,6 +1,6 @@
 [project]
 name = "nullroom"
-version = "0.2.0"
+version = "0.3.0"
 description = "Disposable chat rooms that leave no trace."
 authors = [
     { name = "Jack Scott", email = "cloner.bl12@gmail.com" }
