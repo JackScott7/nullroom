@@ -1,7 +1,13 @@
 [project]
 name = "nullroom"
-version = "0.1.0"
+version = "0.2.0"
 description = "Disposable chat rooms that leave no trace."
+authors = [
+    {
+        email="cloner.bl12@gmail.com",
+        name="Jack Scott"
+    }
+]
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
